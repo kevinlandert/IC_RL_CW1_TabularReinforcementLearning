@@ -1,0 +1,29 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+__pycache_
+
+#Data (except final)
+datasets/
+*.csv
+*.xlsx
+*.pkl
+*.whl
+*.pyc
+
+#Reports
+reports/*
+!reports/figures/.gitkeep
+
+#Jupter Notebook
+.ipynb_checkpoints
+
+#Pycharm
+.idea*
+*.pyo
+*.pyc
