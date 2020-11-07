@@ -380,6 +380,7 @@ class GridWorld(object):
     
     
     #Given a row of our Q (state_action matrix) chooses a egreedy action
+    """
     def choose_eaction(self,epsilon,state_action_row):
         
         maxindex = np.argmax(state_action_row)
@@ -398,8 +399,8 @@ class GridWorld(object):
             prob[maxindex] = 1 - epsilon + (epsilon / 4)
             epolicy[i,:] = prob
         return epolicy
-    
     """
+    
     def choose_epolicy(self,epsilon,Q):
         
         epolicy = np.zeros(Q.shape)
@@ -413,7 +414,6 @@ class GridWorld(object):
             
             epolicy[i,action] = 1
         return epolicy
-   """ 
         
     #Given optimal estimated action for every state creates a greedy policy
     def choose_policy(self,Q):
@@ -424,7 +424,7 @@ class GridWorld(object):
             action[i][maxindex[i]] = 1
         return action
     
-    
+    """
     def epsilon(self,i):
         return 1 / i
     
@@ -454,7 +454,7 @@ class GridWorld(object):
             policy = self.choose_policy(Q)
         
         return (policy,Q,epochs)
-    
+    """
     
     #Takes lists (empty dictionary) and a trace and returns lists with the chain of rewards for every state onward
     def create_lists(self,trace,lists):
@@ -482,10 +482,13 @@ class GridWorld(object):
     
         return lists
     
-    def policy_setup(self):
-        random = np.random.random((self.state_size,self.action_size))
-        self.choose_policy(random)
-        return self.choose_policy(random)
+    def policy_setup(self,random = False):
+        if random:
+            random = np.random.random((self.state_size,self.action_size))
+            policy = self.choose_policy(random)
+        else:
+            random = np.ones((self.state_size,self.action_size)) / 4
+        return policy
 
     def Q_setup(self,terminal_to_zero):
         Q = np.random.random((self.state_size,self.action_size))
@@ -496,6 +499,7 @@ class GridWorld(object):
         return Q
         
     #Monte Carlo estimation
+    """
     def mc_estimation(self,alpha,discount,epochs):
     
         policy  = self.policy_setup()
@@ -520,7 +524,8 @@ class GridWorld(object):
         policy = self.choose_policy(Q)
         
         return Q,policy,epochs
-    
+        
+        
     def mc_egreedy_fv(self,episodes,discount):
         
         Q = self.Q_setup(False)
@@ -552,11 +557,11 @@ class GridWorld(object):
              
             opt_pol = np.argmax(Q,axis = 1)
             policy = self.choose_epolicy(epsiolon,Q)
+    """
     
-    
-    def get_reward_of_trace(self,trace,discount):
+    def get_return_of_trace(self,trace,discount):
         rewards = [element[2] for element in trace]
-        discounts = discount ** np.arange(len(trace))
+        discounts = discount ** (np.arange(len(trace))[::-1])
         total_reward = sum(rewards * discounts)
         return total_reward
     
@@ -728,43 +733,34 @@ class GridWorld(object):
         policy  = self.policy_setup()
         state_action_upt_ctr = np.zeros((self.state_size,self.action_size))
         Q = self.Q_setup(False)
-        #print(Q)
         learning = []
         mse = []
     
-        for i in range(episodes):
+        for episode in range(episodes):
         
             trace = self.get_trace(policy,False)
-            dis_reward = self.get_reward_of_trace(trace,discount)
+            dis_reward = self.get_return_of_trace(trace,discount)
             learning.append(dis_reward)
-            
-            #print(self.get_reward_of_trace(trace,discount))
+
         
             #Gets discounted rewards per state_action pair 
             lists = {}
             lists = self.create_lists(trace,lists)
             lists = self.discount_rewards(lists,discount)
-            #print(lists)
         
             for state,action in lists:
                 Q[state,action] += 1/ (state_action_upt_ctr[state,action] + 1) * (lists[(state,action)] - Q[state, action])
                 state_action_upt_ctr[state,action] += 1
             
-            #policy = self.choose_epolicy(epsilon(i+1),Q)
-            if i < 200:
-                policy = self.choose_epolicy(1 / (i + 1),Q)
-            else:
-                policy = self.choose_policy(Q)
-            bestpolicy = self.choose_policy(Q)
-            Vest = np.sum(np.multiply(bestpolicy,Q),axis = 1)
+            policy = self.choose_epolicy(epsilon / (episode + 1),Q)
+            opt_pol = self.choose_policy(Q)
+            Vest = np.sum(np.multiply(opt_pol,Q),axis = 1)
             mse.append(((Vest - self.Value)**2).mean(axis=None))
          
         #In the end choose optimal policy
-        policy = self.choose_policy(Q)
-        
-        print(state_action_upt_ctr)
+        opt_policy = self.choose_policy(Q)
 
-        return Q,policy,learning,mse,state_action_upt_ctr
+        return Q,policy,opt_policy,learning,mse,state_action_upt_ctr
             
         
     #Question 4
@@ -779,7 +775,7 @@ class GridWorld(object):
         return action
     
     
-    def SARSA_Control(self,discount,alpha,epsilon,episodes):
+    def SARSA_Control(self,discount,epsilon,episodes):
         
         Q = self.Q_setup(True)
         
@@ -793,37 +789,40 @@ class GridWorld(object):
         
         for episode in range(episodes):
             
+            #Initialization
             start = self.get_random_start()
             start_num = self.loc_to_state(start,self.locs)
             state_id = start_num
             total_reward = 0
             
             #Chooses action according to epsilon policy
-            action = self.choose_eaction_sarsa(1 / (episode + 1),Q[state_id])
-            steps = 0
+            action = self.choose_eaction_sarsa(epsilon / (episode + 1),Q[state_id])
             
             while(True):
+                
+                
                 reward,state_id_prime, done = self.get_step(state_id,action)
-                total_reward += discount ** steps * reward
-                steps+= 1
-                action_prime = self.choose_eaction_sarsa(1 / (episode + 1),Q[state_id_prime])
+                action_prime = self.choose_eaction_sarsa(epsilon / (episode + 1),Q[state_id_prime])
+                total_reward = total_reward * discount + reward
+                
+                
                 if done: 
                     Q[state_id,action] = Q[state_id,action] + 1/ alpha[state_id,action] * (reward  - Q[state_id,action])
                     alpha[state_id,action] += 1
                     break
                 else:
                     Q[state_id,action] = Q[state_id,action] + 1/ alpha[state_id,action] * (reward + discount * Q[state_id_prime,action_prime] - Q[state_id,action])
-                    alpha[state_id,action] += 1
+                    alpha[state_id,action] += 1  
+                
                 state_id = state_id_prime
                 action = action_prime
                 
             learning.append(total_reward)
             
-            epolicy = self.choose_policy(Q) #self.choose_epolicy_sarsa(1/episodes,Q)
-            Vest = np.sum(np.multiply(epolicy,Q),axis = 1)
+            policy = self.choose_policy(Q) #self.choose_epolicy_sarsa(1/episodes,Q)
+            Vest = np.sum(np.multiply(policy,Q),axis = 1)
             mse.append(((Vest - self.Value)**2).mean(axis=None))
             
-        print(alpha)
-        epolicy = self.choose_epolicy_sarsa(1/episodes,Q)
+        epolicy = self.choose_epolicy(1/episodes,Q)
         opt_policy = self.choose_policy(Q)
-        return Q,opt_policy,learning,mse,alpha
+        return Q,epolicy,opt_policy,learning,mse,alpha
