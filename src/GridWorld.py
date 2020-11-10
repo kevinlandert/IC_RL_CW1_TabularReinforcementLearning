@@ -355,7 +355,7 @@ class GridWorld(object):
     
     
     ##########################################
-    # Setup Functions
+    # Utility Functions
     ##########################################
     
     #Queries environment for a trace
@@ -429,10 +429,13 @@ class GridWorld(object):
     
     
     ##########################################
-    # Question 2
+    # Question 2 - DP
+    #
+    # Credits to the Lab session for this implementation
     ##########################################
     def value_iteration(self,discount = 0.2,threshold = 0.0001):
     
+        
         T = self.get_transition_matrix()
         R = self.get_reward_matrix()
         
@@ -480,107 +483,11 @@ class GridWorld(object):
                             
         return V,optimal_policy, epochs
     
-    def policy_iteration(self, discount=0.9, threshold = 0.0001):
-        ## Slide 139 of the lecture notes for pseudocode ##
-        
-        # Transition and reward matrices, both are 3d tensors, c.f. internal state
-        T = self.get_transition_matrix()
-        R = self.get_reward_matrix()
-        
-        # Initialisation
-        policy = np.zeros((self.state_size, self.action_size)) # Vector of 0
-        policy[:,0] = 1 # Initialise policy to choose action 1 systematically
-        epochs = 0
-        policy_stable = False # Condition to stop the main loop
 
-        while not(policy_stable): 
-
-            # Policy evaluation
-            V, epochs_eval = self.policy_evaluation(policy, threshold, discount)
-            epochs += epochs_eval # Increment epoch
-
-            # Set the boolean to True, it will be set to False later if the policy prove unstable
-            policy_stable = True
-
-            # Policy iteration
-            for state_idx in range(policy.shape[0]):
-                
-                # If not an absorbing state
-                if not(self.absorbing[0,state_idx]):
-                    
-                    # Store the old action
-                    old_action = np.argmax(policy[state_idx,:])
-                
-                    # Compute Q value
-                    Q = np.zeros(4) # Initialise with value 0
-                    for state_idx_prime in range(policy.shape[0]):
-                        Q += T[state_idx_prime,state_idx,:] * (R[state_idx_prime,state_idx, :] + discount * V[state_idx_prime])
-
-                    # Compute corresponding policy
-                    new_policy = np.zeros(4)
-                    new_policy[np.argmax(Q)] = 1  # The action that maximises the Q value gets probability 1
-                    policy[state_idx] = new_policy
-                
-                    # Check if the policy has converged
-                    if old_action != np.argmax(policy[state_idx]):
-                        policy_stable = False
-           
-        self.Value = V
-        self.policy = policy
-        
-        return V, policy, epochs
-    
-    def policy_evaluation(self, policy, threshold, discount):
-        
-        # Make sure delta is bigger than the threshold to start with
-        delta= 2*threshold
-        
-        #Get the reward and transition matrices
-        R = self.get_reward_matrix()
-        T = self.get_transition_matrix()
-        
-        # The value is initialised at 0
-        V = np.zeros(policy.shape[0])
-        # Make a deep copy of the value array to hold the update during the evaluation
-        Vnew = np.copy(V)
-        
-        epoch = 0
-        # While the Value has not yet converged do:
-        while delta>threshold:
-            epoch += 1
-            for state_idx in range(policy.shape[0]):
-                # If it is one of the absorbing states, ignore
-                if(self.absorbing[0,state_idx]):
-                    continue   
-                
-                # Accumulator variable for the Value of a state
-                tmpV = 0
-                for action_idx in range(policy.shape[1]):
-                    # Accumulator variable for the State-Action Value
-                    tmpQ = 0
-                    for state_idx_prime in range(policy.shape[0]):
-                        tmpQ = tmpQ + T[state_idx_prime,state_idx,action_idx] * (R[state_idx_prime,state_idx, action_idx] + discount * V[state_idx_prime])
-                    
-                    tmpV += policy[state_idx,action_idx] * tmpQ
-                    
-                # Update the value of the state
-                Vnew[state_idx] = tmpV
-            
-            # After updating the values of all states, update the delta
-            # Note: The below is our example way of computing delta.
-            #       Other stopping criteria may be used (for instance mean squared error).
-            #       We encourage you to explore different ways of computing delta to see 
-            #       how it can influence outcomes.
-            delta =  max(abs(Vnew-V))
-            # and save the new value into the old
-            V=np.copy(Vnew)
-            
-        return V, epoch
-    
     
     
     ##########################################
-    # Question 3
+    # Question 3 - MC
     ##########################################       
     
     #Takes lists (empty dictionary) and a trace and returns lists with the chain of 
@@ -671,11 +578,12 @@ class GridWorld(object):
             
         
     ##########################################
-    # Question 4
+    # Question 4 - TD
     ########################################## 
     
     
     def SARSA_Control(self,discount,epsilon,episodes,alpha,epsilon_constant,alpha_constant = False):
+        
         
         #Setup Q initialize random to values in [0,1] and terminal states set to zero
         Q = self.Q_setup(terminal_to_zero = True)
