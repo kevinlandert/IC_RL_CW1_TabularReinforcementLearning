@@ -1,18 +1,6 @@
-# IML_DecisionTree
+# Tabular Reinforcement Learning
 
-## Description:
+## 1. MC Reinforcement Learning
 
-Lorum ipsum Dolor
-
-
-## Folder structure:
-Lorum Ipsum Dolor
-
-## Run instructions:
-
-Lorum Ipsum Dolor
-
-## Todo:
-
-Lorum Ipsum Dolor
+## 2. Temporal Difference Reinforcement Learning
 
